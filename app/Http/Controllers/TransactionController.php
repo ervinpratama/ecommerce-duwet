@@ -10,6 +10,7 @@ use App\Models\BuktiTransfer;
 use App\Models\Reject;
 use App\Models\Kategori;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use PDF;
 
 use App\Models\Barang;
@@ -238,21 +239,30 @@ class TransactionController extends Controller
 
     public function proses_upload(Request $request)
     {
-        $request->validate([
+        // Validate the incoming request
+        $validator = Validator::make($request->all(), [
             'bukti' => 'required|image|mimes:png,jpg,jpeg|max:2048'
         ]);
 
-        $imageName = time().'.'.$request->bukti->extension();
+        // If validation fails, redirect back with error messages
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
 
+        // Generate a unique image name using timestamp
+        $imageName = time().'.'.$request->file('bukti')->extension();
+
+        // Create a new record in the 'BuktiTransfer' table
         BuktiTransfer::create([
-            'transaction_id' => $request->order_id,
+            'transaction_id' => $request->input('order_id'),
             'gambar' => $imageName,
             'status' => 'pending'
         ]);
 
-        // Public Folder
-        $request->bukti->move(public_path('bukti_transfer'), $imageName);
-       
+        // Move the uploaded image to the 'bukti_transfer' folder in the public directory
+        $request->file('bukti')->move(public_path('bukti_transfer'), $imageName);
+
+        // Redirect to the transaction history page after successful upload
         return redirect('/transaction/history');
     }
 
